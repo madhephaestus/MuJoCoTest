@@ -18,7 +18,11 @@ import com.neuronrobotics.sdk.addons.kinematics.math.RotationNR
 import com.neuronrobotics.sdk.addons.kinematics.math.TransformNR
 
 import eu.mihosoft.vrl.v3d.CSG
+import eu.mihosoft.vrl.v3d.Cube
+import eu.mihosoft.vrl.v3d.Cylinder
 import eu.mihosoft.vrl.v3d.Sphere
+import eu.mihosoft.vrl.v3d.Transform
+import javafx.scene.paint.Color
 import javafx.scene.transform.Affine
 
 System.out.println("managerTest");
@@ -28,6 +32,25 @@ if(!file.exists()) {
 	fail("File is missing from the disk");
 }
 MuJoCoModelManager m = new MuJoCoModelManager(file);
+
+TransformNR convert(DoublePointer cartesianPositions,DoublePointer cartesianQuaturnions, int i,boolean print) {
+	DoublePointer coords =cartesianPositions.getPointer(i*3);
+	double x = coords.getPointer(0).get()*1000.0;
+	double y = coords.getPointer(1).get()*1000.0;
+	double z = coords.getPointer(2).get()*1000.0;
+	
+	DoublePointer quat =cartesianQuaturnions.getPointer(i*4);
+	double qw = quat.getPointer(0).get();
+	double qx = quat.getPointer(1).get();
+	double qy = quat.getPointer(2).get();
+	double qz = quat.getPointer(3).get();
+	if(print)
+	println "coords "+[x,y,z]+" "+[qw, qx, qy, qz]
+	
+	RotationNR local = new RotationNR(qw, qx, qy, qz)
+	
+	return new TransformNR(x,y,z,local)
+}
 try {
 	def model = m.getModel();
 	def data = m.getData();
@@ -57,6 +80,11 @@ try {
 	println modelNames.getString()
 	IntPointer intp = model.name_jntadr();
 	IntPointer bodyIndex = model.name_bodyadr();
+	IntPointer MeshIndex = model.name_meshadr();
+	IntPointer GeomIndex = model.name_geomadr();
+	DoublePointer geomSize = model.geom_size()
+	DoublePointer geomPos = model.geom_pos()
+	DoublePointer geomQuat = model.geom_quat()
 	
 	for(int i=0;i<model.nu();i++) {
 		IntPointer str = intp.getPointer(i);
@@ -64,48 +92,97 @@ try {
 		byp.address = str.get()+modelNames.address;
 		println i+" link = "+byp.getString();
 	}
-	ArrayList<CSG> bodyBalls = []
-	
-	for(int i=0;i<model.nbody();i++) {
-		IntPointer str = bodyIndex.getPointer(i);
+	//ArrayList<CSG> bodyBalls = []
+	println "Bodys "+model.nbody()
+	println "Meshes "+model.nmesh()
+//	if(model.nbody()!=model.nmesh()) {
+//		throw new RuntimeException("Different mesha dn body count??");
+//	}
+	HashMap<Integer,ArrayList<CSG>> map= []
+	for(int i=0;i<model.ngeom();i++) {
+		int bodyID = model.geom_bodyid().getPointer(i).get();
+		IntPointer str = bodyIndex.getPointer(bodyID);
 		BytePointer byp = new BytePointer();
-		byp.address = str.get()+modelNames.address;
+		byp = modelNames.getPointer(str.get());
 		String bypGetString = byp.getString()
-		
-		println i+" body = "+bypGetString;
+		String geomName = modelNames.getPointer(GeomIndex.getPointer(i).get()).getString()
+		println i+" body = "+bypGetString+" geom: "+geomName;
+		/**
+		 *  
+  mjGEOM_PLANE        = 0,        // plane
+  mjGEOM_HFIELD = 1,                  // height field
+  mjGEOM_SPHERE = 2,                  // sphere
+  mjGEOM_CAPSULE = 3,                 // capsule
+  mjGEOM_ELLIPSOID = 4,               // ellipsoid
+  mjGEOM_CYLINDER = 5,                // cylinder
+  mjGEOM_BOX = 6,                     // box
+  mjGEOM_MESH = 7,                    // mesh
+		 */
 		CSG ball = new Sphere(10).toCSG()
+		DoublePointer coords =geomSize.getPointer(i*3);
+		double x = coords.getPointer(0).get()*1000.0;
+		double y = coords.getPointer(1).get()*1000.0;
+		double z = coords.getPointer(2).get()*1000.0;
+		
+//		DoublePointer pos =geomPos.getPointer(i*3);
+//		double xp = pos.getPointer(0).get()*1000.0;
+//		double yp = pos.getPointer(1).get()*1000.0;
+//		double zp = pos.getPointer(2).get()*1000.0;
+//		
+//		DoublePointer quat =geomQuat.getPointer(i*4);
+//		double qx = quat.getPointer(1).get();
+//		double qy = quat.getPointer(2).get();
+//		double qz = quat.getPointer(3).get();
+//		double qw = quat.getPointer(0).get();
+		int type = model.geom_type().getPointer(i).get()
+		switch(type) {
+			case MuJoCoLib.mjGEOM_PLANE:
+				println "Plane ";
+				ball = new Cube(x==0?10000:x,y==0?10000:y,z).toCSG()
+							.toZMax()
+							ball.setColor(Color.WHITE)
+				break;
+			case MuJoCoLib.mjGEOM_CAPSULE:
+				ball = new Cylinder(x,y*2).toCSG()
+								.movez(-y)
+				break;
+			case MuJoCoLib.mjGEOM_SPHERE:
+				ball = new Sphere(x).toCSG()
+				break;
+		}
+		TransformNR local = convert(geomPos,geomQuat,i,true)
+		Transform nrToCSG = TransformFactory.nrToCSG(local)
+		ball=ball.transformed(nrToCSG)
 		ball.setManipulator(new Affine())
+		
 		ball.setName(bypGetString)
-		bodyBalls.add(ball)
+		if(map.get(bodyID)==null)
+			map.put(bodyID,[])
+		map.get(bodyID).add(ball)
 	}
-	BowlerStudioController.setCsg(bodyBalls)
+	
+	BowlerStudioController.clearCSG()
+	for(Integer i:map.keySet()) {
+		BowlerStudioController.addObject(map.get(i), null)
+	}
 	long start = System.currentTimeMillis();
-	while (data.time() < 1  && !Thread.interrupted()) {
+	while (data.time() < 10  && !Thread.interrupted()) {
 		long now = System.currentTimeMillis()
 		m.step();
 		// sleep
 		Thread.sleep(m.getTimestepMilliSeconds());
 		if(now-start>16) {
 			start=now;
-			println "Time: "+data.time()
+			//println "Time: "+data.time()
 			DoublePointer cartesianPositions = data.xpos();
 			DoublePointer cartesianQuaturnions = data.xquat();
 			BowlerStudio.runLater({
 				
 				for(int i=0;i<model.nbody();i++) {
-					DoublePointer coords =cartesianPositions.getPointer(i*3);
-					double x = coords.getPointer(0).get()*1000.0;
-					double y = coords.getPointer(1).get()*1000.0;
-					double z = coords.getPointer(2).get()*1000.0;
 					
-					DoublePointer quat =cartesianQuaturnions.getPointer(i*4);
-					double qx = coords.getPointer(0).get();
-					double qy = coords.getPointer(1).get();
-					double qz = coords.getPointer(2).get();
-					double qw = coords.getPointer(3).get();
-					
-					TransformNR local = new TransformNR(x,y,z,new RotationNR(qw, qx, qy, qz))
-					TransformFactory.nrToAffine(local, bodyBalls.get(i).getManipulator())
+					TransformNR local = convert(cartesianPositions,cartesianQuaturnions,i,true)
+					for(CSG bodyBall:map.get(i))
+						TransformFactory.nrToAffine(local, bodyBall.getManipulator())
 				}
 			})
 		}
