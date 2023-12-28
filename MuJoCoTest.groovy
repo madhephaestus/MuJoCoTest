@@ -1,5 +1,7 @@
 import static org.junit.Assert.fail
 
+import org.bytedeco.javacpp.BytePointer
+import org.bytedeco.javacpp.IntPointer
 import org.mujoco.IMujocoController
 import org.mujoco.MuJoCoLib;
 import org.mujoco.MuJoCoLib.mjData_;
@@ -40,8 +42,20 @@ try {
 			MuJoCoLib.mju_scl(d.ctrl(), d.qvel(), -0.1, mL.nv());
 	};
 	m.setController(controller);
+	
+	BytePointer modelNames = model.names()
+	println modelNames.getString()
+	IntPointer intp = model.name_jntadr();
+	
+	for(int i=0;i<model.nu();i++) {
+		IntPointer str = intp.getPointer(i);
+		BytePointer byp = new BytePointer();
+		byp.address = str.get()+modelNames.address;
+		println i+" link = "+byp.getString();
+	}
+	
 	long start = System.currentTimeMillis();
-	while (data.time() < 10  && !Thread.interrupted()) {
+	while (data.time() < 5  && !Thread.interrupted()) {
 		long now = System.currentTimeMillis()
 		m.step();
 		// sleep
