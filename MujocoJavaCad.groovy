@@ -180,7 +180,7 @@ try {
 				
 				for(int i=0;i<model.nbody();i++) {
 					
-					TransformNR local = convert(cartesianPositions,cartesianQuaturnions,i,true)
+					TransformNR local = convert(cartesianPositions,cartesianQuaturnions,i,false)
 					for(CSG bodyBall:map.get(i))
 						TransformFactory.nrToAffine(local, bodyBall.getManipulator())
 				}
