@@ -1,40 +1,34 @@
+import static org.junit.Assert.fail
+
+import org.mujoco.IMujocoController
 import org.mujoco.MuJoCoLib;
-import org.mujoco.MuJoCoLib.mjData;
 import org.mujoco.MuJoCoLib.mjData_;
-import org.mujoco.MuJoCoLib.mjModel;
 import org.mujoco.MuJoCoLib.mjModel_;
 import org.mujoco.MuJoCoLib.mjVFS;
+import org.mujoco.MuJoCoModelManager;
 
-		System.out.println(System.getProperty("org.bytedeco.javacpp.logger.debug"));
-		System.setProperty("org.bytedeco.javacpp.logger.debug", "true");
-		MuJoCoLib lib = new MuJoCoLib();
+import com.neuronrobotics.bowlerstudio.scripting.ScriptingEngine
 
-		System.out.println("Starting " + MuJoCoLib.mj_versionString().getString());
-		byte[] error = [100] as byte[];
-		int error_sz = 0;
-		mjModel m = MuJoCoLib.mj_loadXML(
-				"/home/hephaestus/git/mujoco-java/src/main/resources/mujoco/java/humanoid/humanoid.xml", 
-				(mjVFS)null, 
-				error,
-				error_sz);
-		System.out.println("Humanoid model loaded " + m);
-		mjData d = MuJoCoLib.mj_makeData(m);
-		try {
-			mjModel_ Maccessable = new mjModel_(m);
-			mjData_ accessable = new mjData_(d)
-				System.out.println("Run model for 10 seconds");
-				while (accessable.time() < 10) {
-					MuJoCoLib.mj_step(m, d);
-					Thread.sleep(1);
-					
-				}
-
-			
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		System.out.println("Clean up data objects");
-
-		MuJoCoLib.mj_deleteData(d);
-		MuJoCoLib.mj_deleteModel(m);
+System.out.println("managerTest");
+String filename = "model/humanoid/humanoid.xml";
+File file = ScriptingEngine.fileFromGit("https://github.com/CommonWealthRobotics/mujoco-java.git", filename)
+if(!file.exists()) {
+	fail("File is missing from the disk");
+}
+MuJoCoModelManager m = new MuJoCoModelManager(file);
+def model = m.getModel();
+def data = m.getData();
+System.out.println("Run ModelManager for 10 seconds");
+IMujocoController controller =  {d, mL->
+	// apply controls https://mujoco.readthedocs.io/en/stable/programming/simulation.html#simulation-loop
+	if( mL.nu()==mL.nv() )
+		MuJoCoLib.mju_scl(d.ctrl(), d.qvel(), -0.1, mL.nv());
+};
+m.setController(controller);
+while (data.time() < 10) {
+	m.step();
+	// sleep
+	Thread.sleep(m.getTimestepMilliSeconds());
+	println "Time: "+data.time()
+}
+m.close();
