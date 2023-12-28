@@ -21,6 +21,20 @@ try {
 	def data = m.getData();
 	System.out.println("Run ModelManager for 10 seconds");
 	IMujocoController controller =  {mjData_ d, mjModel_ mL->
+		/**
+		 * This illustrates two concepts. First, we are checking 
+		 * if the number of controls mjModel.nu equals the number 
+		 * of DoFs mjModel.nv. In general, the same callback may 
+		 * be used with multiple models depending on how the user
+		 *  code is structured, and so it is a good idea to check 
+		 *  the model dimensions in the callback. Second, MuJoCo 
+		 *  has a library of BLAS-like functions that are very 
+		 *  useful; indeed a large part of the code base consists 
+		 *  of calling such functions internally. The mju_scl 
+		 *  function above scales the velocity vector mjData.qvel 
+		 *  by a constant feedback gain and copies the result into 
+		 *  the control vector mjData.ctrl.
+		 */
 		// apply controls https://mujoco.readthedocs.io/en/stable/programming/simulation.html#simulation-loop
 		if( mL.nu()==mL.nv() )
 			MuJoCoLib.mju_scl(d.ctrl(), d.qvel(), -0.1, mL.nv());
