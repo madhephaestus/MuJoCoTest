@@ -44,8 +44,8 @@ TransformNR convert(DoublePointer cartesianPositions,DoublePointer cartesianQuat
 	double qx = quat.getPointer(1).get();
 	double qy = quat.getPointer(2).get();
 	double qz = quat.getPointer(3).get();
-	if(print)
-	println "coords "+[x,y,z]+" "+[qw, qx, qy, qz]
+	//if(print)
+	//println "coords "+[x,y,z]+" "+[qw, qx, qy, qz]
 	
 	RotationNR local = new RotationNR(qw, qx, qy, qz)
 	
@@ -55,6 +55,12 @@ try {
 	def model = m.getModel();
 	def data = m.getData();
 	System.out.println("Run ModelManager for 10 seconds");
+	@groovy.transform.Field ArrayList<Double> target = [];
+	for(int i=0;i<model.nu();i++) {
+		int qposAddr =model.jnt_qposadr().get(i);
+		double position = model.qpos0().get(qposAddr);
+		target.add(position);
+	}
 	IMujocoController controller =  {mjData_ d, mjModel_ mL->
 		/**
 		 * This illustrates two concepts. First, we are checking 
@@ -71,8 +77,23 @@ try {
 		 *  the control vector mjData.ctrl.
 		 */
 		// apply controls https://mujoco.readthedocs.io/en/stable/programming/simulation.html#simulation-loop
-		if( mL.nu()==mL.nv() )
-			MuJoCoLib.mju_scl(d.ctrl(), d.qvel(), -0.1, mL.nv());
+		//if( mL.nu()==mL.nv() )MuJoCoLib.mju_scl(d.ctrl(), d.qvel(), -0.5, mL.nv());
+		DoublePointer ctrl = d.ctrl();
+		DoublePointer pos = d.qpos();
+		double gain = 10
+		//println "Controls #"+mL.nu()+" positions #"+mL.nq()+" bodys "+mL.nbody()
+		int offset = mL.nq()-mL.nu()
+		for(int i=0;i<mL.nu();i++) {
+			int qposAddr =mL.jnt_qposadr().get(i);
+			double position = pos.get(qposAddr);
+			double effort = (target.get(i) -position) * gain; 
+			if(effort>1)
+				effort=1;
+			if(effort<-1)
+				effort=-1;
+			ctrl.put(i, effort);
+			//println m.getJointName(i)+" "+i+" "+[qposAddr,position,target.get(i),effort]
+		}
 	};
 	m.setController(controller);
 	
