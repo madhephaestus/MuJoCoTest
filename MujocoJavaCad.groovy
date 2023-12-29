@@ -61,6 +61,7 @@ try {
 		double position = model.qpos0().get(qposAddr);
 		target.add(position);
 	}
+	double sinCounter=0;
 	IMujocoController controller =  {mjData_ d, mjModel_ mL->
 		/**
 		 * This illustrates two concepts. First, we are checking 
@@ -80,9 +81,14 @@ try {
 		//if( mL.nu()==mL.nv() )MuJoCoLib.mju_scl(d.ctrl(), d.qvel(), -0.5, mL.nv());
 		DoublePointer ctrl = d.ctrl();
 		DoublePointer pos = d.qpos();
-		double gain = 10
+		double gain = 1
 		//println "Controls #"+mL.nu()+" positions #"+mL.nq()+" bodys "+mL.nbody()
 		int offset = mL.nq()-mL.nu()
+		sinCounter+=0.01;
+		if(sinCounter>1)
+			sinCounter=0;
+		int wiggle = 5
+		target.set(wiggle,Math.sin(sinCounter*Math.PI*2));
 		for(int i=0;i<mL.nu();i++) {
 			int qposAddr =mL.jnt_qposadr().get(i);
 			double position = pos.get(qposAddr);
@@ -92,7 +98,8 @@ try {
 			if(effort<-1)
 				effort=-1;
 			ctrl.put(i, effort);
-			//println m.getJointName(i)+" "+i+" "+[qposAddr,position,target.get(i),effort]
+			if(i==wiggle)
+				println m.getJointName(i)+" "+i+" "+[qposAddr,position,target.get(i),effort]
 		}
 	};
 	m.setController(controller);
