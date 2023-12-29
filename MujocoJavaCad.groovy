@@ -143,7 +143,11 @@ try {
 							ball.setColor(Color.WHITE)
 				break;
 			case MuJoCoLib.mjGEOM_CAPSULE:
+				CSG top = new Sphere(x).toCSG()
 				ball = new Cylinder(x,y*2).toCSG()
+								.union(top)
+								.union(top.movez(y*2))
+								.hull()
 								.movez(-y)
 				break;
 			case MuJoCoLib.mjGEOM_SPHERE:
@@ -166,7 +170,7 @@ try {
 		BowlerStudioController.addObject(map.get(i), null)
 	}
 	long start = System.currentTimeMillis();
-	while (data.time() < 10  && !Thread.interrupted()) {
+	while (data.time() < 20  && !Thread.interrupted()) {
 		long now = System.currentTimeMillis()
 		m.step();
 		// sleep
