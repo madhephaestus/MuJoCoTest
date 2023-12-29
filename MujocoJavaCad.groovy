@@ -26,7 +26,7 @@ import javafx.scene.paint.Color
 import javafx.scene.transform.Affine
 
 System.out.println("managerTest");
-String filename = "model/humanoid/humanoid.xml";
+String filename = "model/humanoid/humanoid-ridgid.xml";
 File file = ScriptingEngine.fileFromGit("https://github.com/CommonWealthRobotics/mujoco-java.git", filename)
 if(!file.exists()) {
 	fail("File is missing from the disk");
@@ -55,7 +55,7 @@ try {
 	def model = m.getModel();
 	def data = m.getData();
 	System.out.println("Run ModelManager for 10 seconds");
-	@groovy.transform.Field ArrayList<Double> target = [];
+	ArrayList<Double> target = [];
 	for(int i=0;i<model.nu();i++) {
 		int qposAddr =model.jnt_qposadr().get(i);
 		double position = model.qpos0().get(qposAddr);
@@ -113,12 +113,9 @@ try {
 		byp.address = str.get()+modelNames.address;
 		println i+" link = "+byp.getString();
 	}
-	//ArrayList<CSG> bodyBalls = []
 	println "Bodys "+model.nbody()
 	println "Meshes "+model.nmesh()
-//	if(model.nbody()!=model.nmesh()) {
-//		throw new RuntimeException("Different mesha dn body count??");
-//	}
+
 	HashMap<Integer,ArrayList<CSG>> map= []
 	for(int i=0;i<model.ngeom();i++) {
 		int bodyID = model.geom_bodyid().getPointer(i).get();
@@ -128,8 +125,17 @@ try {
 		String bypGetString = byp.getString()
 		String geomName = modelNames.getPointer(GeomIndex.getPointer(i).get()).getString()
 		println i+" body = "+bypGetString+" geom: "+geomName;
+
+		CSG ball = new Sphere(10).toCSG()
+		DoublePointer coords =geomSize.getPointer(i*3);
+		double x = coords.getPointer(0).get()*1000.0;
+		double y = coords.getPointer(1).get()*1000.0;
+		double z = coords.getPointer(2).get()*1000.0;
+		
+
+		int type = model.geom_type().getPointer(i).get()
 		/**
-		 *  
+		 *
   mjGEOM_PLANE        = 0,        // plane
   mjGEOM_HFIELD = 1,                  // height field
   mjGEOM_SPHERE = 2,                  // sphere
@@ -139,23 +145,6 @@ try {
   mjGEOM_BOX = 6,                     // box
   mjGEOM_MESH = 7,                    // mesh
 		 */
-		CSG ball = new Sphere(10).toCSG()
-		DoublePointer coords =geomSize.getPointer(i*3);
-		double x = coords.getPointer(0).get()*1000.0;
-		double y = coords.getPointer(1).get()*1000.0;
-		double z = coords.getPointer(2).get()*1000.0;
-		
-//		DoublePointer pos =geomPos.getPointer(i*3);
-//		double xp = pos.getPointer(0).get()*1000.0;
-//		double yp = pos.getPointer(1).get()*1000.0;
-//		double zp = pos.getPointer(2).get()*1000.0;
-//		
-//		DoublePointer quat =geomQuat.getPointer(i*4);
-//		double qx = quat.getPointer(1).get();
-//		double qy = quat.getPointer(2).get();
-//		double qz = quat.getPointer(3).get();
-//		double qw = quat.getPointer(0).get();
-		int type = model.geom_type().getPointer(i).get()
 		switch(type) {
 			case MuJoCoLib.mjGEOM_PLANE:
 				println "Plane ";
