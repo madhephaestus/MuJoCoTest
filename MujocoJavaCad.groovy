@@ -26,12 +26,15 @@ import javafx.scene.paint.Color
 import javafx.scene.transform.Affine
 
 System.out.println("managerTest");
-String filename = "model/humanoid/humanoid-ridgid.xml";
-File file = ScriptingEngine.fileFromGit("https://github.com/CommonWealthRobotics/mujoco-java.git", filename)
-if(!file.exists()) {
-	fail("File is missing from the disk");
+if(args==null) {
+	String filename = "model/humanoid/humanoid-ridgid.xml";
+	File file = ScriptingEngine.fileFromGit("https://github.com/CommonWealthRobotics/mujoco-java.git", filename)
+	if(!file.exists()) {
+		fail("File is missing from the disk");
+	}
+	args=[file]
 }
-MuJoCoModelManager m = new MuJoCoModelManager(file);
+MuJoCoModelManager m = new MuJoCoModelManager(args[0]);
 
 TransformNR convert(DoublePointer cartesianPositions,DoublePointer cartesianQuaturnions, int i,boolean print) {
 	DoublePointer coords =cartesianPositions.getPointer(i*3);
@@ -84,7 +87,7 @@ try {
 		double gain = 1
 		//println "Controls #"+mL.nu()+" positions #"+mL.nq()+" bodys "+mL.nbody()
 		int offset = mL.nq()-mL.nu()
-		sinCounter+=0.01;
+		sinCounter+=0.005;
 		if(sinCounter>1)
 			sinCounter=0;
 		int wiggle = 5
