@@ -12,10 +12,17 @@ import org.mujoco.MuJoCoModelManager;
 
 import com.neuronrobotics.bowlerstudio.BowlerStudio
 import com.neuronrobotics.bowlerstudio.BowlerStudioController
+import com.neuronrobotics.bowlerstudio.creature.MobileBaseCadManager
+import com.neuronrobotics.bowlerstudio.creature.MobileBaseLoader
 import com.neuronrobotics.bowlerstudio.physics.TransformFactory
 import com.neuronrobotics.bowlerstudio.scripting.ScriptingEngine
+import com.neuronrobotics.sdk.addons.kinematics.AbstractLink
+import com.neuronrobotics.sdk.addons.kinematics.DHParameterKinematics
+import com.neuronrobotics.sdk.addons.kinematics.LinkConfiguration
+import com.neuronrobotics.sdk.addons.kinematics.MobileBase
 import com.neuronrobotics.sdk.addons.kinematics.math.RotationNR
 import com.neuronrobotics.sdk.addons.kinematics.math.TransformNR
+import com.neuronrobotics.sdk.common.DeviceManager
 
 import eu.mihosoft.vrl.v3d.CSG
 import eu.mihosoft.vrl.v3d.Cube
@@ -25,17 +32,232 @@ import eu.mihosoft.vrl.v3d.Transform
 import javafx.scene.paint.Color
 import javafx.scene.transform.Affine
 
-System.out.println("managerTest");
-if(args==null) {
+MobileBase cat;
+if(args!=null) {
+	cat=args[0]
+}else {
+	cat = DeviceManager.getSpecificDevice("Marcos", {
+		MobileBase m = MobileBaseLoader.fromGit(
+				"https://github.com/OperationSmallKat/Marcos.git",
+				"Marcos.xml"
+				)
+		m.connect()
+		return m;
+	})
+}
+MobileBaseCadManager cadMan = MobileBaseCadManager.get(cat)
+cadMan.setConfigurationViewerMode(false);
+
+double timestep = 0.005
+HashMap<String,AbstractLink> linkNameMap = new HashMap<>()
+String muXML = "<mujoco model=\""+cat.getScriptingName()+"\">\n";
+muXML+="  <option timestep=\""+timestep+"\"/>\n"
+muXML+="  <size njmax=\"8000\" nconmax=\"4000\"/>\n"
+muXML+="  <visual>\n"+
+		 "    <map force=\"0.1\" zfar=\"30\"/>\n"+
+		 "    <rgba haze=\"0.15 0.25 0.35 1\"/>\n"+
+		 "  </visual>\n"
+muXML+="  <statistic center=\"0 0 0.7\"/>\n"
+muXML+="  <asset>\n"+ 
+"    <texture type=\"skybox\" builtin=\"gradient\" rgb1=\".3 .5 .7\" rgb2=\"0 0 0\" width=\"32\" height=\"512\"/>\n"+ 
+"    <texture name=\"body\" type=\"cube\" builtin=\"flat\" mark=\"cross\" width=\"128\" height=\"128\" rgb1=\"0.8 0.6 0.4\" rgb2=\"0.8 0.6 0.4\" markrgb=\"1 1 1\" random=\"0.01\"/>\n"+ 
+"    <material name=\"body\" texture=\"body\" texuniform=\"true\" rgba=\"0.8 0.6 .4 1\"/>\n"+ 
+"    <texture name=\"grid\" type=\"2d\" builtin=\"checker\" width=\"512\" height=\"512\" rgb1=\".1 .2 .3\" rgb2=\".2 .3 .4\"/>\n"+ 
+"    <material name=\"grid\" texture=\"grid\" texrepeat=\"1 1\" texuniform=\"true\" reflectance=\".2\"/>\n"+ 
+"  </asset>\n"
+
+muXML+="  <default>\n"+
+		 "    <motor ctrlrange=\"-1 1\" ctrllimited=\"true\"/>\n"+
+		 "    <default class=\"body\">\n"+
+		 "\n"+
+		 "      <!-- geoms -->\n"+
+		 "      <geom type=\"sphere\" condim=\"1\" friction=\".7\" solimp=\".9 .99 .003\" solref=\".015 1\" material=\"body\" group=\"1\"/>\n"+
+		 "<!-- joints -->\n"+
+		 "      <joint type=\"hinge\" damping=\"7.5\" stiffness=\"20\" armature=\".01\" limited=\"true\" solimplimit=\"0 .99 .01\"/>\n"
+muXML+="    </default>\n"+
+		 "  </default>\n";
+
+muXML+="  <worldbody>\n"+
+		 "    <geom name=\"floor\" size=\"0 0 .05\" type=\"plane\" material=\"grid\" condim=\"3\"/>\n"
+muXML+=loadBase(cat,linkNameMap,cadMan)
+muXML+="\n  </worldbody>\n"
+
+muXML+="    <actuator>\n"
+for(String lname:linkNameMap.keySet()) {
+	muXML+="      <motor name=\""+lname+"\"       gear=\"120\"  joint=\""+lname+"\"/>\n"
+}
+muXML+="    </actuator>\n"
+
+muXML+="\n</mujoco>"
+
+String loadBase(MobileBase m,HashMap<String,AbstractLink> map,MobileBaseCadManager cadMan) {
+	String name = m.getScriptingName()+"_base"
+	ArrayList<CSG>  cad = cadMan.getBasetoCadMap().get(m)
+	
+	CSG box =toBox(cad) 
+	double x = box.getCenterX()/1000.0
+	
+	double y = box.getCenterY()/1000.0
+	
+	double z = box.getCenterZ()/1000.0
+	String XML ="    <body name=\""+name+"\" pos=\""+x+" "+y+" "+z+"\" childclass=\"body\">\n"
+	XML+="      <freejoint name=\"root\"/>\n"
+	CSG fbox = box.intersect(box.toXMin().movex(box.getCenterX()))
+	CSG bbox = box.intersect(box.toXMax().movex(box.getCenterX()))
+	
+	//XML+=csgToGeom(name+"_"+0,bbox,true)
+	int corners=1
+
+	for(DHParameterKinematics k:m.getAllDHChains()) {
+		if(k.getScriptingName().contains("Dummy"))
+			continue;
+		def toCSGTransformed = new Cube(10).toCSG()
+					.transformed(TransformFactory
+						.nrToCSG(k.getRobotToFiducialTransform()))
+		XML+=csgToGeom(name+"_"+(corners++),toCSGTransformed,true)
+			
+		//if(k.getScriptingName().contentEquals("RightFront"))
+			XML+=loadLink(k,0,map,cadMan)
+	}
+	XML+="    </body>\n"
+ 
+}
+CSG toBox(ArrayList<CSG> cad) {
+	CSG box = null
+	for(CSG c:cad) {
+		if(!c.getStorage().getValue("no-physics").isPresent()) {
+			if(box==null)
+				box=c.getBoundingBox()
+			else
+				box=box.union(c.getBoundingBox())
+		}
+	}
+	box=box.getBoundingBox()
+	return box;
+}
+String csgToGeom(String name,CSG box, boolean sizeove) {
+	double size = box.getTotalY()/1000.0/2
+	if(sizeove)
+		size=0.01
+	double fx=(box.getCenterX()-size/2)/1000.0;
+	double fy=(box.getCenterY()-size/2)/1000.0
+	double fz=(box.getCenterZ()-size/2)/1000.0
+
+	return "      <geom name=\""+name+"\" pos=\""+fx+" "+fy+" "+fz+"\" size=\""+size+"\"/>\n"
+}
+
+String loadLink(DHParameterKinematics l,int index,HashMap<String,AbstractLink> map,MobileBaseCadManager cadMan) {
+	if(index==l.getNumberOfLinks())
+		return ""
+	if(index==3)
+		return ""
+	AbstractLink link = l.getAbstractLink(index)
+	LinkConfiguration conf = link.getLinkConfiguration()
+	String name = conf.getName()+"_"+l.getScriptingName()
+	map.put(name, link)
+	println "Adding parts for "+name
+	ArrayList<CSG>  cad = cadMan.getLinktoCadMap().get(conf)
+	if(cad==null)
+		return ""
+	CSG box =toBox(cad)
+	String spaces=" "
+	for(int i=0;i<index;i++) {
+		spaces+="  "
+	}
+	TransformNR location
+	if(index==0) {
+		location=l.getRobotToFiducialTransform().copy()
+	}else {
+		location=new TransformNR(l.getDhLink(index-1).DhStep(0))
+	}
+	TransformNR local = new TransformNR(l.getDhLink(index).DhStep(0))
+//	if(index==0) {
+//		location=l.getRobotToFiducialTransform().copy()
+//	}else {
+//		location=l.forwardOffset(l.getLinkTip(index-1))
+//	}
+//	TransformNR lForwardOffset = l.forwardOffset(l.getLinkTip(index))
+//	TransformNR local = location.inverse().times(lForwardOffset)
+	
+	Transform step = TransformFactory.nrToCSG(local)
+	double x = location.getX()/1000.0
+	
+	double y = location.getY()/1000.0
+	
+	double z = location.getZ()/1000.0
+	String quat =" quat=\""+location.getRotation().getRotationMatrix2QuaturnionW()+" "+
+	location.getRotation().getRotationMatrix2QuaturnionX()+" "+
+	location.getRotation().getRotationMatrix2QuaturnionY()+" "+
+	location.getRotation().getRotationMatrix2QuaturnionZ()+"\""
+	String XML =spaces+"     <body name=\""+name+"\" pos=\""+x+" "+y+" "+z+"\" "+quat+">\n"
+	
+	TransformNR axis 
+	if(index==0) {
+		axis=l.getRobotToFiducialTransform().copy()
+	}else {
+		axis=l.forwardOffset(l.getLinkTip(index))
+	}
+
+	String pos = tfToPos(new TransformNR())
+	
+	double upper = link.getMaxEngineeringUnits()
+	double lower = link.getMinEngineeringUnits()
+	String range=lower+" "+upper
+	
+	XML+=spaces+"       <joint name=\""+name+"\" "+pos+" "+"range=\""+range+"\" />\n"
+	box=new Cube(10).toCSG()
+	XML+=spaces+" "+csgToGeom( name+"_A", box.transformed(step),true)
+	XML+=spaces+" "+csgToGeom( name+"_B", box,true)
+	
+	XML+=loadLink(l,index+1,map,cadMan)
+	
+	XML+=spaces+"     </body>\n"
+	//println XML
+	return XML
+}
+
+String tfToPos(TransformNR tf) {
+	double x = 0
+	
+	double y = 0
+	
+	double z = 0
+	String STR=" pos=\""+x+" "+y+" "+z+"\""
+	TransformNR unit = new TransformNR(0,0,0,tf.inverse().getRotation())
+						.times(new  TransformNR(0,0,1,new RotationNR()))
+	STR+=" axis=\""+sig(unit.getX())+" "+sig(unit.getY())+" "+sig(unit.getZ())+"\""
+	return STR
+}
+
+double sig(double x) {
+	if(x>0.999)
+		return 1;
+	if(x<-0.999)
+			return -1;
+	if(x<0.001 && x>-0.001)
+		return 0
+	return x;
+}
+
+File dir = ScriptingEngine.getRepositoryCloneDirectory(cat.getGitSelfSource()[0])
+println "Robot Dir "+dir.getAbsolutePath()
+File muFile =  new File(dir.getAbsolutePath()+"/mujoco.xml");
+BufferedWriter writer = new BufferedWriter(new FileWriter(muFile.getAbsolutePath()));
+writer.write(muXML);
+writer.close();
+
+return null
+
+System.out.println("Loading "+cat.getScriptingName());
+
 	String filename = "model/humanoid/humanoid-ridgid.xml";
 	File file = ScriptingEngine.fileFromGit("https://github.com/CommonWealthRobotics/mujoco-java.git", filename)
 	if(!file.exists()) {
 		fail("File is missing from the disk");
 	}
-	args=[file]
-}
 
-MuJoCoModelManager m = new MuJoCoModelManager(args[0]);
+
+MuJoCoModelManager m = new MuJoCoModelManager(file);
 
 TransformNR convert(DoublePointer cartesianPositions,DoublePointer cartesianQuaturnions, int i,boolean print) {
 	DoublePointer coords =cartesianPositions.getPointer(i*3);
@@ -102,8 +324,8 @@ try {
 			if(effort<-1)
 				effort=-1;
 			ctrl.put(i, effort);
-			if(i==wiggle)
-				println m.getJointName(i)+" "+i+" "+[qposAddr,position,target.get(i),effort]
+//			if(i==wiggle)
+//				println m.getJointName(i)+" "+i+" "+[qposAddr,position,target.get(i),effort]
 		}
 	};
 	m.setController(controller);
@@ -191,7 +413,7 @@ try {
 		BowlerStudioController.addObject(map.get(i), null)
 	}
 	long start = System.currentTimeMillis();
-	while (data.time() < 20  && !Thread.interrupted()) {
+	while (data.time() < 0.5  && !Thread.interrupted()) {
 		long now = System.currentTimeMillis()
 		m.step();
 		// sleep
