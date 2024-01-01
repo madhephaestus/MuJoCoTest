@@ -46,10 +46,23 @@ if(args!=null) {
 	})
 }
 MobileBaseCadManager cadMan = MobileBaseCadManager.get(cat)
+HashMap<String,AbstractLink> linkNameMap = new HashMap<>()
+boolean viewer = cadMan.configMode
+while(cadMan.getProcesIndictor().get()<0.999) {
+	Thread.sleep(100);
+	println "Waiting for cad to process "+cadMan.getProcesIndictor().get() 
+}
 cadMan.setConfigurationViewerMode(false);
+if(viewer) {
+	cadMan.generateCad();
+	Thread.sleep(100);
+}
+while(cadMan.getProcesIndictor().get()<0.999) {
+	Thread.sleep(100);
+	println "Waiting for cad to process "+cadMan.getProcesIndictor().get() 
+}
 
 double timestep = 0.005
-HashMap<String,AbstractLink> linkNameMap = new HashMap<>()
 String muXML = "<mujoco model=\""+cat.getScriptingName()+"\">\n";
 muXML+="  <option timestep=\""+timestep+"\"/>\n"
 muXML+="  <size njmax=\"8000\" nconmax=\"4000\"/>\n"
@@ -246,15 +259,16 @@ BufferedWriter writer = new BufferedWriter(new FileWriter(muFile.getAbsolutePath
 writer.write(muXML);
 writer.close();
 
-return null
+//return null
 
 System.out.println("Loading "+cat.getScriptingName());
 
-	String filename = "model/humanoid/humanoid-ridgid.xml";
-	File file = ScriptingEngine.fileFromGit("https://github.com/CommonWealthRobotics/mujoco-java.git", filename)
-	if(!file.exists()) {
-		fail("File is missing from the disk");
-	}
+//String filename = "model/humanoid/humanoid-ridgid.xml";
+//File file = ScriptingEngine.fileFromGit("https://github.com/CommonWealthRobotics/mujoco-java.git", filename)
+File file = muFile;
+if(!file.exists()) {
+	fail("File is missing from the disk");
+}
 
 
 MuJoCoModelManager m = new MuJoCoModelManager(file);
@@ -307,25 +321,18 @@ try {
 		//if( mL.nu()==mL.nv() )MuJoCoLib.mju_scl(d.ctrl(), d.qvel(), -0.5, mL.nv());
 		DoublePointer ctrl = d.ctrl();
 		DoublePointer pos = d.qpos();
-		double gain = 1
-		//println "Controls #"+mL.nu()+" positions #"+mL.nq()+" bodys "+mL.nbody()
-		int offset = mL.nq()-mL.nu()
-		sinCounter+=0.005;
-		if(sinCounter>1)
-			sinCounter=0;
-		int wiggle = 5
-		target.set(wiggle,Math.sin(sinCounter*Math.PI*2));
+		HashMap<String,AbstractLink> map =  linkNameMap
 		for(int i=0;i<mL.nu();i++) {
 			int qposAddr =mL.jnt_qposadr().get(i);
 			double position = pos.get(qposAddr);
-			double effort = (target.get(i) -position) * gain; 
-			if(effort>1)
-				effort=1;
-			if(effort<-1)
-				effort=-1;
-			ctrl.put(i, effort);
-//			if(i==wiggle)
-//				println m.getJointName(i)+" "+i+" "+[qposAddr,position,target.get(i),effort]
+
+			AbstractLink link = map.get(m.getJointName(i))
+			if(link==null)
+				continue;
+			double posTarget = Math.toRadians(link.getCurrentEngineeringUnits())
+			//ctrl.put(i, effort);
+			
+			println m.getJointName(i)+" "+i+" "+[position,posTarget]
 		}
 	};
 	m.setController(controller);
@@ -413,7 +420,7 @@ try {
 		BowlerStudioController.addObject(map.get(i), null)
 	}
 	long start = System.currentTimeMillis();
-	while (data.time() < 0.5  && !Thread.interrupted()) {
+	while (data.time() < 10  && !Thread.interrupted()) {
 		long now = System.currentTimeMillis()
 		m.step();
 		// sleep
