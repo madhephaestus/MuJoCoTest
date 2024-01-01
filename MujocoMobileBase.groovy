@@ -52,8 +52,9 @@ while(cadMan.getProcesIndictor().get()<0.999) {
 	Thread.sleep(100);
 	println "Waiting for cad to process "+cadMan.getProcesIndictor().get() 
 }
-cadMan.setConfigurationViewerMode(false);
+Thread.sleep(500);
 if(viewer) {
+	cadMan.setConfigurationViewerMode(false);
 	cadMan.generateCad();
 	Thread.sleep(100);
 }
@@ -322,7 +323,9 @@ try {
 		DoublePointer ctrl = d.ctrl();
 		DoublePointer pos = d.qpos();
 		HashMap<String,AbstractLink> map =  linkNameMap
-		for(int i=0;i<mL.nu();i++) {
+		for(int i=0;i<mL.njnt();i++) {
+			if(i!=3)
+				continue;
 			int qposAddr =mL.jnt_qposadr().get(i);
 			double position = pos.get(qposAddr);
 
@@ -330,7 +333,7 @@ try {
 			if(link==null)
 				continue;
 			double posTarget = Math.toRadians(link.getCurrentEngineeringUnits())
-			//ctrl.put(i, effort);
+			ctrl.put(i, posTarget);
 			
 			println m.getJointName(i)+" "+i+" "+[position,posTarget]
 		}
@@ -430,14 +433,19 @@ try {
 			//println "Time: "+data.time()
 			DoublePointer cartesianPositions = data.xpos();
 			DoublePointer cartesianQuaturnions = data.xquat();
+			ArrayList<TransformNR> poss =[]
+			for(int i=0;i<model.nbody();i++) {
+				poss.add(convert(cartesianPositions,cartesianQuaturnions,i,false))
+			}
 			BowlerStudio.runLater({
 				
 				for(int i=0;i<model.nbody();i++) {
 					
-					TransformNR local = convert(cartesianPositions,cartesianQuaturnions,i,false)
+					TransformNR local = poss[i];
 					for(CSG bodyBall:map.get(i))
 						TransformFactory.nrToAffine(local, bodyBall.getManipulator())
 				}
+				poss.clear()
 			})
 		}
 	}
