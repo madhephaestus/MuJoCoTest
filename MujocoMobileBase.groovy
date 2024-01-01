@@ -87,7 +87,7 @@ muXML+="  <default>\n"+
 		 "      <!-- geoms -->\n"+
 		 "      <geom type=\"sphere\" condim=\"1\" friction=\".7\" solimp=\".9 .99 .003\" solref=\".015 1\" material=\"body\" group=\"1\"/>\n"+
 		 "<!-- joints -->\n"+
-		 "      <joint type=\"hinge\" damping=\"7.5\" stiffness=\"20\" armature=\".01\" limited=\"true\" solimplimit=\"0 .99 .01\"/>\n"
+		 "      <joint type=\"hinge\" damping=\"7.5\" stiffness=\"5\" armature=\".01\" limited=\"true\" solimplimit=\"0 .99 .01\"/>\n"
 muXML+="    </default>\n"+
 		 "  </default>\n";
 
@@ -292,6 +292,9 @@ TransformNR convert(DoublePointer cartesianPositions,DoublePointer cartesianQuat
 	
 	return new TransformNR(x,y,z,local)
 }
+
+
+
 try {
 	def model = m.getModel();
 	def data = m.getData();
@@ -303,6 +306,17 @@ try {
 		target.add(position);
 	}
 	double sinCounter=0;
+	IntPointer acts= model.name_actuatoradr();
+	BytePointer modelNames = model.names()
+	println modelNames.getString()
+	IntPointer intp = model.name_jntadr();
+	IntPointer bodyIndex = model.name_bodyadr();
+	IntPointer MeshIndex = model.name_meshadr();
+	IntPointer GeomIndex = model.name_geomadr();
+	DoublePointer geomSize = model.geom_size()
+	DoublePointer geomPos = model.geom_pos()
+	DoublePointer geomQuat = model.geom_quat()
+	
 	IMujocoController controller =  {mjData_ d, mjModel_ mL->
 		/**
 		 * This illustrates two concepts. First, we are checking 
@@ -323,32 +337,35 @@ try {
 		DoublePointer ctrl = d.ctrl();
 		DoublePointer pos = d.qpos();
 		HashMap<String,AbstractLink> map =  linkNameMap
+		HashMap<String ,Double > positions =[]
 		for(int i=0;i<mL.njnt();i++) {
-			if(i!=3)
-				continue;
 			int qposAddr =mL.jnt_qposadr().get(i);
 			double position = pos.get(qposAddr);
-
-			AbstractLink link = map.get(m.getJointName(i))
+			BytePointer byp = modelNames.getPointer(intp.getPointer(i).get());
+			String name= byp.getString();
+			positions.put(name, position)
+		}
+		double kp =0.03
+		for(int i=0;i<mL.nu();i++) {
+			//if(i!=1)continue;
+			String actName = modelNames.getPointer(acts.getPointer(i).get()).getString()
+			double position = Math.toDegrees(positions.get(actName))
+			
+			AbstractLink link = map.get(actName)
 			if(link==null)
 				continue;
-			double posTarget = Math.toRadians(link.getCurrentEngineeringUnits())
-			ctrl.put(i, posTarget);
+			double posTarget = link.getCurrentEngineeringUnits()
+			double error = posTarget-position
+			double effort = error * kp
+			ctrl.put(i, effort);
 			
-			println m.getJointName(i)+" "+i+" "+[position,posTarget]
+			//println actName+" "+i+" "+[position,posTarget]
 		}
+		positions.clear()
 	};
 	m.setController(controller);
 	
-	BytePointer modelNames = model.names()
-	println modelNames.getString()
-	IntPointer intp = model.name_jntadr();
-	IntPointer bodyIndex = model.name_bodyadr();
-	IntPointer MeshIndex = model.name_meshadr();
-	IntPointer GeomIndex = model.name_geomadr();
-	DoublePointer geomSize = model.geom_size()
-	DoublePointer geomPos = model.geom_pos()
-	DoublePointer geomQuat = model.geom_quat()
+
 	
 	for(int i=0;i<model.nu();i++) {
 		IntPointer str = intp.getPointer(i);
@@ -423,7 +440,7 @@ try {
 		BowlerStudioController.addObject(map.get(i), null)
 	}
 	long start = System.currentTimeMillis();
-	while (data.time() < 10  && !Thread.interrupted()) {
+	while (data.time() < 100  && !Thread.interrupted()) {
 		long now = System.currentTimeMillis()
 		m.step();
 		// sleep
