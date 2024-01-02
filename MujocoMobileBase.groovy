@@ -45,6 +45,7 @@ if(args!=null) {
 		return m;
 	})
 }
+Thread.sleep(500);
 MobileBaseCadManager cadMan = MobileBaseCadManager.get(cat)
 HashMap<String,AbstractLink> linkNameMap = new HashMap<>()
 boolean viewer = cadMan.configMode
@@ -434,7 +435,17 @@ try {
 			map.put(bodyID,[])
 		map.get(bodyID).add(ball)
 	}
-	
+	String bodyName = cat.getScriptingName()+"_base"
+	for(int i=0;i<model.nbody();i++) {
+		String name = m.getBodyName(i);
+		if(name.contentEquals(name)) {
+			def array = cadMan.getBasetoCadMap().get(cat)
+			for(CSG c:array) {
+				if(!c.getStorage().getValue("no-physics").isPresent())
+					map.get(i).add(c)
+			}
+		}
+	}
 	BowlerStudioController.clearCSG()
 	for(Integer i:map.keySet()) {
 		BowlerStudioController.addObject(map.get(i), null)
