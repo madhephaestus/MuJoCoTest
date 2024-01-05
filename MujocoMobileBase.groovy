@@ -438,11 +438,11 @@ try {
 	String bodyName = cat.getScriptingName()+"_base"
 	for(int i=0;i<model.nbody();i++) {
 		String name = m.getBodyName(i);
-		if(name.contentEquals(name)) {
+		if(bodyName.contentEquals(name)) {
 			def array = cadMan.getBasetoCadMap().get(cat)
 			for(CSG c:array) {
 				if(!c.getStorage().getValue("no-physics").isPresent())
-					map.get(i).add(c)
+					map.get(i).add(c.clone())
 			}
 		}
 	}
