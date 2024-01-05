@@ -161,6 +161,22 @@ String csgToGeom(String name,CSG box, boolean sizeove) {
 	return "      <geom name=\""+name+"\" pos=\""+fx+" "+fy+" "+fz+"\" size=\""+size+"\"/>\n"
 }
 
+int getLinkIndex(AbstractLink l, DHParameterKinematics k) {
+	for (int i=0;i<k.getNumberOfLinks();i++) {
+		if(k.getAbstractLink(i)==l)
+			return i;
+	}
+	return -1;
+} 
+
+DHParameterKinematics getLimb(AbstractLink l, MobileBase m) {
+	for(DHParameterKinematics k:m.getAllDHChains()) {
+		if(getLinkIndex(l, k)>=0)
+			return k;
+	}
+	return null;
+}
+
 String loadLink(DHParameterKinematics l,int index,HashMap<String,AbstractLink> map,MobileBaseCadManager cadMan) {
 	if(index==l.getNumberOfLinks())
 		return ""
@@ -436,6 +452,14 @@ try {
 		map.get(bodyID).add(ball)
 	}
 	String bodyName = cat.getScriptingName()+"_base"
+	HashMap<String,AbstractLink> lnmap=linkNameMap
+	
+	HashMap<Affine,String> affineNameMap=[]
+	for(String s:lnmap.keySet()) {
+		Affine a = lnmap.get(s).getGlobalPositionListener()
+		//println "Link listener "+s+" is "+a
+		affineNameMap.put(a, s)
+	}
 	for(int i=0;i<model.nbody();i++) {
 		String name = m.getBodyName(i);
 		if(bodyName.contentEquals(name)) {
@@ -444,8 +468,40 @@ try {
 				if(!c.getStorage().getValue("no-physics").isPresent())
 					map.get(i).add(c.clone())
 			}
+		}else {
+			AbstractLink link = lnmap.get(name)
+			if(link!=null) {
+				LinkConfiguration conf = link.getLinkConfiguration()
+				
+				def array = cadMan.getLinktoCadMap().get(conf)
+				for(CSG c:array) {
+					if(!c.getStorage().getValue("no-physics").isPresent()) {
+						for(int j=0;j<model.nbody();j++) {
+							String jname = m.getBodyName(j);
+							Affine cGetManipulator = c.getManipulator()
+							if(cGetManipulator!=null) {
+								String affineNameMapGet = affineNameMap.get(cGetManipulator)
+								println "Checking "+jname+" is the link for part "+c.getName()
+								if(affineNameMapGet!=null)
+									if(jname.contentEquals(affineNameMapGet)) {
+										AbstractLink l = lnmap.get(jname)
+										DHParameterKinematics k = getLimb(l, cat)
+										int index = getLinkIndex(l, k)
+										TransformNR local = new TransformNR(k.getDhLink(index).DhStep(0))
+										Transform step = TransformFactory.nrToCSG(local)
+										map.get(j).add(c.transformed(step))
+									}
+							}
+						}
+					}
+				}
+			}
 		}
 	}
+	
+
+	
+	
 	BowlerStudioController.clearCSG()
 	for(Integer i:map.keySet()) {
 		BowlerStudioController.addObject(map.get(i), null)
