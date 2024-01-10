@@ -1,4 +1,4 @@
-import static org.junit.Assert.fail
+//import static org.junit.Assert.fail
 
 import org.bytedeco.javacpp.BytePointer
 import org.bytedeco.javacpp.DoublePointer
