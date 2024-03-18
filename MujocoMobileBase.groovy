@@ -336,7 +336,7 @@ try {
 	DoublePointer geomPos = model.geom_pos()
 	DoublePointer geomQuat = model.geom_quat()
 
-	IMujocoController controller =  {mjData_ d, mjModel_ mL->
+	IMujocoController controller =  {MuJoCoModelManager managerLocal->
 		/**
 		 * This illustrates two concepts. First, we are checking 
 		 * if the number of controls mjModel.nu equals the number 
@@ -353,6 +353,8 @@ try {
 		 */
 		// apply controls https://mujoco.readthedocs.io/en/stable/programming/simulation.html#simulation-loop
 		//if( mL.nu()==mL.nv() )MuJoCoLib.mju_scl(d.ctrl(), d.qvel(), -0.5, mL.nv());
+		def d = managerLocal.getData();
+		def mL = managerLocal.getModel();
 		DoublePointer ctrl = d.ctrl();
 		DoublePointer pos = d.qpos();
 		HashMap<String,AbstractLink> map =  linkNameMap
@@ -557,6 +559,7 @@ try {
 }catch(Throwable t) {
 	t.printStackTrace(System.out);
 }
+println "Exiting MuJoCo Simulation"
 m.close();
 
 
