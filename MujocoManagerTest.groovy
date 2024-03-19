@@ -70,7 +70,7 @@ manager.generateNewModel();// generate model before start counting time
 BowlerStudioController.clearCSG();
 BowlerStudioController.clearUserNodes();
 BowlerStudioController.addObject(manager.getAllCSG(),null );
-BowlerStudioController.addObject(MobileBaseCadManager.get(cat).getAllCad(),null );
+//BowlerStudioController.addObject(MobileBaseCadManager.get(cat).getAllCad(),null );
 manager.stepAndWait()
 long start = System.currentTimeMillis();
 double now = 0;
