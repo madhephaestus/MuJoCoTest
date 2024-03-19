@@ -75,7 +75,7 @@ manager.stepAndWait()
 long start = System.currentTimeMillis();
 double now = 0;
 try {
-	while((now=manager.getCurrentSimulationTimeSeconds())<50 && !Thread.interrupted()) {
+	while((now=manager.getCurrentSimulationTimeSeconds())<500 && !Thread.interrupted()) {
 		if(!manager.stepAndWait()) {
 			//println ("Real time broken!");
 			//break;
