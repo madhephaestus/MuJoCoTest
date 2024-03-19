@@ -273,7 +273,7 @@ bases.add(cat);
 ArrayList<CSG> lifted =new ArrayList<>();
 ArrayList<CSG> terrain = new ArrayList<>();
 
-MyManager manager = new MyManager("javaCadTest", bases, lifted, terrain, new File("./physicsTest"));
+MuJoCoPhysicsManager manager = new MuJoCoPhysicsManager("javaCadTest", bases, lifted, terrain, new File("./physicsTest"));
 //manager.setIntegratorType(IntegratorType.RK_4);
 manager.setIntegratorType(IntegratorType.IMPLICIT);
 manager.setTimestep(0.001);
