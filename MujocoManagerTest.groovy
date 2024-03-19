@@ -242,9 +242,9 @@ manager.stepAndWait()
 long start = System.currentTimeMillis();
 double now = 0;
 try {
-	while((now=manager.getCurrentSimulationTimeSeconds())<5 && !Thread.interuppted()) {
+	while((now=manager.getCurrentSimulationTimeSeconds())<5 && !Thread.interrupted()) {
 		if(!manager.stepAndWait()) {
-			println ("Real time broken!");
+			//println ("Real time broken!");
 			//break;
 		}else {
 			//System.out.println("Time "+now);
@@ -254,7 +254,7 @@ try {
 		if((sec-1)>now) {
 			
 			println ("Simulation froze and restarted! "+sec+" expected "+now);
-			//break;
+			break;
 		}
 	}
 }catch(Throwable t) {
