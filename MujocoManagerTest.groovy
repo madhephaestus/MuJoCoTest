@@ -37,10 +37,24 @@ MobileBase cat =(MobileBase)DeviceManager.getSpecificDevice("Marcos",{
 	return cat;
 })
 
+List<CSG> parts = (List<CSG>) ScriptingEngine.gitScriptRun(
+		"https://gist.github.com/4814b39ee72e9f590757.git",
+		"javaCad.groovy");
 ArrayList<MobileBase> bases = new ArrayList<>();
+cat.connect();
 bases.add(cat);
 ArrayList<CSG> lifted =new ArrayList<>();
 ArrayList<CSG> terrain = new ArrayList<>();
+//terrain.add(new Cube(10000,10000,100).toCSG().toZMax());
+for(int i=45;i<parts.size();i++) {
+	if (i==27||i==25)
+		continue;
+	CSG p= parts.get(i);
+	CSG pl=p.roty(15).movez(200);
+	pl.setName(p.getName());
+	lifted.add(pl);
+	terrain.add(p);
+}
 
 MuJoCoPhysicsManager manager = new MuJoCoPhysicsManager("javaCadTest", bases, lifted, terrain, new File("./physicsTest"));
 //manager.setIntegratorType(IntegratorType.RK_4);
