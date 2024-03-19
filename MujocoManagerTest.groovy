@@ -4,6 +4,7 @@ import java.math.BigDecimal
 import javax.xml.bind.JAXBException
 
 import org.mujoco.MuJoCoModelManager
+import org.mujoco.xml.Mujoco
 import org.mujoco.xml.Mujoco.Actuator.Builder
 import org.mujoco.xml.attributetypes.JointtypeType
 import org.mujoco.xml.body.JointType
@@ -29,7 +30,8 @@ import javafx.scene.transform.Affine
 
 public class MyManager extends com.neuronrobotics.bowlerstudio.physics.MuJoCoPhysicsManager{
 	public HashMap<Affine,String> affineNameMap =new HashMap<>();
-
+	private Mujoco.Contact.Builder<? > contacts;
+	
 	public MyManager(String name,List<MobileBase> bases, List<CSG> freeObjects,
 	List<CSG> fixedObjects,	File workingDir){
 		super(name,bases,freeObjects,fixedObjects,workingDir);
@@ -37,6 +39,8 @@ public class MyManager extends com.neuronrobotics.bowlerstudio.physics.MuJoCoPhy
 	
 	@Override
 	public void loadBase(MobileBase cat, Builder<?> actuators) throws IOException {
+		if(contacts==null)
+			contacts= builder.addContact();
 		String bodyName = getMujocoName(cat);
 		MobileBaseCadManager cadMan = MobileBaseCadManager.get(cat);
 		loadCadForMobileBase(cadMan);
@@ -46,7 +50,7 @@ public class MyManager extends com.neuronrobotics.bowlerstudio.physics.MuJoCoPhy
 				.withName(bodyName);
 		addBody.addFreejoint();
 		TransformNR center = cat.getCenterOfMassFromCentroid();
-		setStartLocation(center, addBody);
+		//setStartLocation(center, addBody);
 		for (int i = 0; i < arrayList.size(); i++) {
 			CSG part = arrayList.get(i);
 
@@ -56,23 +60,40 @@ public class MyManager extends com.neuronrobotics.bowlerstudio.physics.MuJoCoPhy
 			String nameOfCSG = bodyName+"_CSG_"+bodyParts;
 			CSG transformed = part.transformed(TransformFactory.nrToCSG(center).inverse());
 			CSG hull = transformed.hull();
+			transformed=part.clone();
 			transformed.setManipulator(new Affine());
 			putCSGInAssets(nameOfCSG, hull,true);
 			org.mujoco.xml.body.GeomType.Builder<?> geom = addBody.addGeom();
-			ArrayList<CSG> parts = getMapNameToCSGParts(nameOfCSG);
+			ArrayList<CSG> parts = getMapNameToCSGParts(bodyName);
 			parts.add( transformed);
 			setCSGMeshToGeom(nameOfCSG, geom);
+			geom.withPos(center.getX()/1000.0+" "+
+				center.getY()/1000.0+" "+
+				center.getZ()/1000.0+" ");
 		}
 		for(DHParameterKinematics l:cat.getAllDHChains()) {
+			if(l.getScriptingName().contains("Dummy"))
+				continue;
+			String lastName = bodyName;
 			for(int i=0;i<l.getNumberOfLinks();i++) {
+				
 				AbstractLink link = l.getAbstractLink(i);
 				LinkConfiguration conf = link.getLinkConfiguration();
+				if(!checkLinkPhysics(cadMan,conf))
+					continue;
 				String name = conf.getName()+"_"+l.getScriptingName();
 				println "Loading link "+name
 				mapNameToLink.put(name, link);
 				Affine a = link.getGlobalPositionListener();
 				//println "Link listener "+s+" is "+a
 				affineNameMap.put(a, name);
+				contacts.addExclude()
+						.withBody1(bodyName)
+						.withBody2(name);
+				contacts.addExclude()
+						.withBody1(lastName)
+						.withBody2(name);
+				lastName=name;
 			}
 		}
 
@@ -80,16 +101,27 @@ public class MyManager extends com.neuronrobotics.bowlerstudio.physics.MuJoCoPhy
 			if(k.getScriptingName().contains("Dummy"))
 				continue;
 			org.mujoco.xml.BodyarchType.Builder<?> linkBody =addBody;
-
+			HashMap<AbstractLink,org.mujoco.xml.BodyarchType.Builder<?>> linkToBulder = new HashMap<>()
+			
 			for(int i=0;i<k.getNumberOfLinks();i++) {
 				AbstractLink link = k.getAbstractLink(i);
 				LinkConfiguration conf = link.getLinkConfiguration();
-				linkBody=loadLink(k,i,cadMan.getLinktoCadMap().get(conf),linkBody,actuators);
+				ArrayList<CSG>  parts=cadMan.getLinktoCadMap().get(conf)
+				if(checkLinkPhysics(cadMan,conf))
+					linkBody=loadLink(k,i,parts,linkBody,actuators,linkToBulder);
 			}
 		}
 	}
-	@Override
-	public org.mujoco.xml.BodyarchType.Builder<?> loadLink(DHParameterKinematics l,int index,ArrayList<CSG>  cad,org.mujoco.xml.BodyarchType.Builder<?> addBody, Builder<?> actuators) {
+	private boolean checkLinkPhysics(MobileBaseCadManager cadMan,LinkConfiguration conf) {
+		ArrayList<CSG>  parts=cadMan.getLinktoCadMap().get(conf)
+		for(CSG c:parts) {
+			if(checkForPhysics(c))
+				return true;
+		}
+		return false;
+	}
+
+	public org.mujoco.xml.BodyarchType.Builder<?> loadLink(DHParameterKinematics l,int index,ArrayList<CSG>  cad,org.mujoco.xml.BodyarchType.Builder<?> addBody, Builder<?> actuators,HashMap<AbstractLink,org.mujoco.xml.BodyarchType.Builder<?>> linkToBulderMap) {
 
 		AbstractLink link = l.getAbstractLink(index);
 		LinkConfiguration conf = link.getLinkConfiguration();
@@ -126,6 +158,7 @@ public class MyManager extends com.neuronrobotics.bowlerstudio.physics.MuJoCoPhy
 				.withName(name)
 				.withPos(x+" "+y+" "+z)
 				.withQuat(quat);
+		linkToBulderMap.put(link, linkBody);
 		TransformNR axis;
 		if(index==0) {
 			axis=l.getRobotToFiducialTransform().copy();
@@ -146,8 +179,8 @@ public class MyManager extends com.neuronrobotics.bowlerstudio.physics.MuJoCoPhy
 				.withRange(range)
 				.withType(JointtypeType.HINGE)
 				.withLimited(true)
-				.withDamping(BigDecimal.valueOf(7.5))
-				.withStiffness(BigDecimal.valueOf(5))
+				.withDamping(BigDecimal.valueOf(0.1))
+				.withStiffness(BigDecimal.valueOf(0.1))
 				.withName(name)
 		;
 		actuators.addMotor()
@@ -176,12 +209,15 @@ public class MyManager extends com.neuronrobotics.bowlerstudio.physics.MuJoCoPhy
 							)
 							));
 					CSG hull = transformed.hull();
+//					if(myLink!=link)
+//						hull = part.hull();
 					transformed.setManipulator(new Affine());
 					String geomname=name+" "+i;
 
 					try {
 						putCSGInAssets(geomname, hull,true);
-						org.mujoco.xml.body.GeomType.Builder<?> geom = linkBody.addGeom();
+						org.mujoco.xml.body.GeomType.Builder<?> geom = linkToBulderMap.get(myLink).addGeom();
+						
 						ArrayList<CSG> parts = getMapNameToCSGParts(affineNameMapGet);
 						parts.add( transformed);
 						setCSGMeshToGeom(geomname, geom);
