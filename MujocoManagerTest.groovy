@@ -17,6 +17,7 @@ import com.neuronrobotics.bowlerstudio.physics.MuJoCoPhysicsManager
 import com.neuronrobotics.bowlerstudio.physics.TransformFactory
 import com.neuronrobotics.bowlerstudio.scripting.ScriptingEngine
 import com.neuronrobotics.sdk.addons.kinematics.AbstractLink
+import com.neuronrobotics.sdk.addons.kinematics.DHLink
 import com.neuronrobotics.sdk.addons.kinematics.DHParameterKinematics
 import com.neuronrobotics.sdk.addons.kinematics.LinkConfiguration
 import com.neuronrobotics.sdk.addons.kinematics.MobileBase
@@ -29,34 +30,50 @@ import eu.mihosoft.vrl.v3d.CSG
 import eu.mihosoft.vrl.v3d.Transform
 import javafx.scene.transform.Affine
 
-MobileBase cat =(MobileBase)DeviceManager.getSpecificDevice("Marcos",{
+public class MyManager extends MuJoCoPhysicsManager{
+	public MyManager(String name,List<MobileBase> bases, List<CSG> freeObjects, List<CSG> fixedObjects,
+		File workingDir) throws IOException, JAXBException {
+		super(name, bases, freeObjects, fixedObjects, workingDir);
+	}
+	
+
+}
+MobileBase cat =(MobileBase)DeviceManager.getSpecificDevice("NASA_Curiosity",{
 	MobileBase cat = (MobileBase) ScriptingEngine.gitScriptRun(
-			"https://github.com/OperationSmallKat/Marcos.git",
-			"Marcos.xml");
+			"https://github.com/NeuronRobotics/NASACurisoity.git",
+			"NASA_Curiosity.xml");
 	cat.connect();
 	return cat;
 })
+//MobileBase cat =(MobileBase)DeviceManager.getSpecificDevice("Marcos",{
+//	MobileBase cat = (MobileBase) ScriptingEngine.gitScriptRun(
+//			"https://github.com/OperationSmallKat/Marcos.git",
+//			"Marcos.xml");
+//	cat.connect();
+//	return cat;
+//})
 
-List<CSG> parts = (List<CSG>) ScriptingEngine.gitScriptRun(
-		"https://gist.github.com/4814b39ee72e9f590757.git",
-		"javaCad.groovy");
+
 ArrayList<MobileBase> bases = new ArrayList<>();
 cat.connect();
 bases.add(cat);
 ArrayList<CSG> lifted =new ArrayList<>();
 ArrayList<CSG> terrain = new ArrayList<>();
+//List<CSG> parts = (List<CSG>) ScriptingEngine.gitScriptRun(
+//	"https://gist.github.com/4814b39ee72e9f590757.git",
+//	"javaCad.groovy");
 //terrain.add(new Cube(10000,10000,100).toCSG().toZMax());
-for(int i=45;i<parts.size();i++) {
-	if (i==27||i==25)
-		continue;
-	CSG p= parts.get(i);
-	CSG pl=p.roty(15).movez(200);
-	pl.setName(p.getName());
-	lifted.add(pl);
-	terrain.add(p);
-}
+//for(int i=45;i<parts.size();i++) {
+//	if (i==27||i==25)
+//		continue;
+//	CSG p= parts.get(i);
+//	CSG pl=p.roty(15).movez(200);
+//	pl.setName(p.getName());
+//	lifted.add(pl);
+//	terrain.add(p);
+//}
 
-MuJoCoPhysicsManager manager = new MuJoCoPhysicsManager("javaCadTest", bases, lifted, terrain, new File("./physicsTest"));
+MuJoCoPhysicsManager manager = new MyManager("javaCadTest", bases, lifted, terrain, new File("./physicsTest"));
 //manager.setIntegratorType(IntegratorType.RK_4);
 manager.setIntegratorType(IntegratorType.IMPLICIT);
 manager.setTimestep(0.001);
