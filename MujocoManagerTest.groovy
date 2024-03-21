@@ -3,6 +3,7 @@ import java.math.BigDecimal
 
 import javax.xml.bind.JAXBException
 
+import org.mujoco.MuJoCoLib
 import org.mujoco.MuJoCoModelManager
 import org.mujoco.xml.Mujoco
 import org.mujoco.xml.Mujoco.Actuator.Builder
@@ -16,6 +17,7 @@ import com.neuronrobotics.bowlerstudio.creature.MobileBaseCadManager
 import com.neuronrobotics.bowlerstudio.physics.MuJoCoPhysicsManager
 import com.neuronrobotics.bowlerstudio.physics.TransformFactory
 import com.neuronrobotics.bowlerstudio.scripting.ScriptingEngine
+import com.neuronrobotics.bowlerstudio.vitamins.Vitamins
 import com.neuronrobotics.sdk.addons.kinematics.AbstractLink
 import com.neuronrobotics.sdk.addons.kinematics.DHLink
 import com.neuronrobotics.sdk.addons.kinematics.DHParameterKinematics
@@ -27,29 +29,47 @@ import com.neuronrobotics.sdk.common.DeviceManager
 import com.neuronrobotics.sdk.common.IDeviceProvider
 
 import eu.mihosoft.vrl.v3d.CSG
+import eu.mihosoft.vrl.v3d.RoundedCylinder
 import eu.mihosoft.vrl.v3d.Transform
 import javafx.scene.transform.Affine
 
 public class MyManager extends MuJoCoPhysicsManager{
+	
 	public MyManager(String name,List<MobileBase> bases, List<CSG> freeObjects, List<CSG> fixedObjects,
 		File workingDir) throws IOException, JAXBException {
 		super(name, bases, freeObjects, fixedObjects, workingDir);
 	}
-	
 
 }
+//MobileBase cat =(MobileBase)DeviceManager.getSpecificDevice("Standard6dof",{
+//	MobileBase cat = (MobileBase) ScriptingEngine.gitScriptRun(
+//			"https://github.com/Halloween2020TheChild/GroguMechanicsCad.git",
+//			"hephaestus.xml");
+//	cat.connect();
+//	MobileBaseCadManager.get(cat).setConfigMode(false);
+//	MobileBaseCadManager.get(cat).generateCad();
+//	return cat;
+//})
+
+
 MobileBase cat =(MobileBase)DeviceManager.getSpecificDevice("NASA_Curiosity",{
 	MobileBase cat = (MobileBase) ScriptingEngine.gitScriptRun(
 			"https://github.com/NeuronRobotics/NASACurisoity.git",
 			"NASA_Curiosity.xml");
 	cat.connect();
+	MobileBaseCadManager.get(cat).setConfigMode(false);
+	MobileBaseCadManager.get(cat).generateCad();
 	return cat;
 })
+
+
 //MobileBase cat =(MobileBase)DeviceManager.getSpecificDevice("Marcos",{
 //	MobileBase cat = (MobileBase) ScriptingEngine.gitScriptRun(
 //			"https://github.com/OperationSmallKat/Marcos.git",
 //			"Marcos.xml");
 //	cat.connect();
+//	MobileBaseCadManager.get(cat).setConfigMode(false);
+//	MobileBaseCadManager.get(cat).generateCad();
 //	return cat;
 //})
 
@@ -87,8 +107,15 @@ manager.generateNewModel();// generate model before start counting time
 BowlerStudioController.clearCSG();
 BowlerStudioController.clearUserNodes();
 BowlerStudioController.addObject(manager.getAllCSG(),null );
-//BowlerStudioController.addObject(MobileBaseCadManager.get(cat).getAllCad(),null );
+
+def getGetAllCad = MobileBaseCadManager.get(cat).getAllCad()
+for(CSG c:getGetAllCad) {
+	c.setIsWireFrame(true)
+}
+BowlerStudioController.addObject(getGetAllCad,null );
+for(int i=0;i<1;i++)
 manager.stepAndWait()
+//return
 long start = System.currentTimeMillis();
 double now = 0;
 try {
