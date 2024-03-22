@@ -82,19 +82,19 @@ cat.connect();
 bases.add(cat);
 ArrayList<CSG> lifted =new ArrayList<>();
 ArrayList<CSG> terrain = new ArrayList<>();
-//List<CSG> parts = (List<CSG>) ScriptingEngine.gitScriptRun(
-//	"https://gist.github.com/4814b39ee72e9f590757.git",
-//	"javaCad.groovy");
+List<CSG> parts = (List<CSG>) ScriptingEngine.gitScriptRun(
+	"https://gist.github.com/4814b39ee72e9f590757.git",
+	"javaCad.groovy");
 //terrain.add(new Cube(10000,10000,100).toCSG().toZMax());
-//for(int i=45;i<parts.size();i++) {
-//	if (i==27||i==25)
-//		continue;
-//	CSG p= parts.get(i);
-//	CSG pl=p.roty(15).movez(200);
-//	pl.setName(p.getName());
-//	lifted.add(pl);
-//	terrain.add(p);
-//}
+for(int i=48;i<parts.size();i++) {
+	if (i==27||i==25)
+		continue;
+	CSG p= parts.get(i);
+	CSG pl=p.roty(15).movez(200);
+	pl.setName(p.getName());
+	lifted.add(pl);
+	terrain.add(p);
+}
 
 MuJoCoPhysicsManager manager = new MyManager("javaCadTest", bases, lifted, terrain, new File("./physicsTest"));
 //manager.setIntegratorType(IntegratorType.RK_4);
@@ -115,14 +115,14 @@ def getGetAllCad = MobileBaseCadManager.get(cat).getAllCad()
 for(CSG c:getGetAllCad) {
 	c.setIsWireFrame(true)
 }
-BowlerStudioController.addObject(getGetAllCad,null );
+//BowlerStudioController.addObject(getGetAllCad,null );
 for(int i=0;i<1;i++)
 manager.stepAndWait()
 //return
 long start = System.currentTimeMillis();
 double now = 0;
 try {
-	while((now=manager.getCurrentSimulationTimeSeconds())<500 && !Thread.interrupted()) {
+	while((now=manager.getCurrentSimulationTimeSeconds())<1500 && !Thread.interrupted()) {
 		if(!manager.stepAndWait()) {
 			//println ("Real time broken!");
 			//break;
