@@ -95,8 +95,8 @@ for(int i=46;i<parts.size();i++) {
 	lifted.add(pl);
 	terrain.add(p);
 }
-
-MuJoCoPhysicsManager manager = new MyManager("javaCadTest", bases, lifted, terrain, new File("physicsTest"));
+File workingDir = new File(ScriptingEngine.getWorkspace().getAbsolutePath()+"/physics/test/");
+MuJoCoPhysicsManager manager = new MyManager("javaCadTest", bases, lifted, terrain, workingDir);
 //manager.setIntegratorType(IntegratorType.RK_4);
 manager.setIntegratorType(IntegratorType.IMPLICIT);
 manager.setTimestep(0.001);
