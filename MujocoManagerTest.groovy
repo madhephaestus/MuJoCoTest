@@ -86,7 +86,7 @@ List<CSG> parts = (List<CSG>) ScriptingEngine.gitScriptRun(
 	"https://gist.github.com/4814b39ee72e9f590757.git",
 	"javaCad.groovy");
 //terrain.add(new Cube(10000,10000,100).toCSG().toZMax());
-for(int i=48;i<parts.size();i++) {
+for(int i=46;i<parts.size();i++) {
 	if (i==27||i==25)
 		continue;
 	CSG p= parts.get(i);
@@ -96,7 +96,7 @@ for(int i=48;i<parts.size();i++) {
 	terrain.add(p);
 }
 
-MuJoCoPhysicsManager manager = new MyManager("javaCadTest", bases, lifted, terrain, new File("./physicsTest"));
+MuJoCoPhysicsManager manager = new MyManager("javaCadTest", bases, lifted, terrain, new File("physicsTest"));
 //manager.setIntegratorType(IntegratorType.RK_4);
 manager.setIntegratorType(IntegratorType.IMPLICIT);
 manager.setTimestep(0.001);
