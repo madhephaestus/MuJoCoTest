@@ -64,6 +64,9 @@ MobileBase cat =(MobileBase)DeviceManager.getSpecificDevice("NASA_Curiosity",{
 	MobileBaseCadManager.get(cat).generateCad();
 	return cat;
 })
+//println cat.getMassKg()
+//println cat.getCenterOfMassFromCentroid()
+//return
 
 
 //MobileBase cat =(MobileBase)DeviceManager.getSpecificDevice("Marcos",{
@@ -117,8 +120,8 @@ for(CSG c:getGetAllCad) {
 }
 //BowlerStudioController.addObject(getGetAllCad,null );
 for(int i=0;i<1;i++)
-manager.stepAndWait()
-//return
+	manager.stepAndWait()
+return
 long start = System.currentTimeMillis();
 double now = 0;
 try {
