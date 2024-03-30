@@ -121,7 +121,7 @@ for(CSG c:getGetAllCad) {
 //BowlerStudioController.addObject(getGetAllCad,null );
 for(int i=0;i<1;i++)
 	manager.stepAndWait()
-return
+//return
 long start = System.currentTimeMillis();
 double now = 0;
 try {
